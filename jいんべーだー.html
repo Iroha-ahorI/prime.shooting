@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Prime Shooter JS版</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* スクロールバーを消す */
+    }
+    canvas {
+      background: black;
+      display: block;
+    }
+    #restartBtn {
+      display: none;
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      font-size: 18px;
+      background: #f44336;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<button id="restartBtn">Restart</button>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const restartBtn = document.getElementById("restartBtn");
+
+// --- 全画面化 ---
+function resizeCanvas(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+const WIDTH = ()=>canvas.width;
+const HEIGHT = ()=>canvas.height;
+
+// --- ゲーム状態変数 ---
+let playerX, playerY, bullets, enemies, bulletQueue, enemyTimer, score, lives;
+let gameOver, gameClear;
+
+// スコアエフェクト管理
+let effects = [];
+
+// 初期化関数
+function initGame(){
+  playerX = WIDTH()/2;
+  playerY = HEIGHT() - 50;
+  bullets = [];
+  enemies = [];
+  bulletQueue = Array.from({length:7},()=>bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
+  enemyTimer = 0;
+  score = 0;
+  lives = 5;
+  gameOver = false;
+  gameClear = false;
+  effects = [];
+  restartBtn.style.display = "none"; // ボタン非表示
+}
+
+// 弾の候補
+const bulletNumbers = [2,3,3,4,5,6,7];
+
+// 弾クラス
+class Bullet {
+  constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=-10; }
+  update(){ this.y += this.speed; }
+  draw(){ ctx.fillStyle="yellow"; ctx.fillText(this.value,this.x,this.y); }
+}
+
+// 敵クラス
+class Enemy {
+  constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=1; } // speed=1でPython版と同じくらい
+  update(){ this.y += this.speed; }
+  draw(){ ctx.fillStyle="red"; ctx.fillText(this.value,this.x,this.y); }
+  hit(bulletValue){
+    if(this.value % bulletValue === 0){
+      this.value = Math.floor(this.value / bulletValue);
+      if(this.value === 1) return true;
+    }
+    return false;
+  }
+}
+
+// 敵生成
+function generateComposite(){
+  let factors = [];
+  let count = Math.floor(Math.random()*2)+2; // 2〜3個
+  while(factors.length < count){
+    let f = bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)];
+    if(!factors.includes(f)) factors.push(f);
+  }
+  return factors.reduce((a,b)=>a*b,1);
+}
+
+// キー入力
+let keys = {};
+document.addEventListener("keydown", e=>{
+  // 矢印キーのスクロールを無効化
+  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
+    e.preventDefault();
+  }
+  keys[e.key] = true;
+  if(e.key === "ArrowUp"){
+    bullets.push(new Bullet(playerX, playerY, bulletQueue[bulletQueue.length-1]));
+    bulletQueue.pop();
+    bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
+  }
+  if(e.key === "ArrowDown"){
+    bulletQueue.pop();
+    bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
+  }
+});
+document.addEventListener("keyup", e=>{ keys[e.key] = false; });
+
+// 更新処理
+function update(){
+  if(gameOver || gameClear) return;
+
+  if(keys["ArrowLeft"]) playerX -= 8;
+  if(keys["ArrowRight"]) playerX += 8;
+
+  enemyTimer++;
+  if(enemyTimer > 450){
+    enemies.push(new Enemy(Math.random()*(WIDTH()-200)+50,0,generateComposite()));
+    enemyTimer = 0;
+  }
+
+  bullets.forEach(b=>b.update());
+  bullets = bullets.filter(b=>b.y>0);
+
+  enemies.forEach(enemy=>{
+    enemy.update();
+    if(enemy.y > playerY){
+      lives--;
+      enemies = enemies.filter(e=>e!==enemy);
+      if(lives<=0){ 
+        gameOver=true; 
+        restartBtn.style.display="block"; // ゲームオーバー時のみ表示
+      }
+    }
+    bullets.forEach(bullet=>{
+      if(Math.abs(enemy.x-bullet.x)<40 && Math.abs(enemy.y-bullet.y)<40){
+        if(enemy.value % bullet.value === 0){
+          if(enemy.hit(bullet.value)){
+            let gain = Math.floor((HEIGHT()-enemy.y)/10);
+            score += gain; // 敵が消えた場合のみ加点
+            enemies = enemies.filter(e=>e!==enemy);
+            // エフェクト追加
+            effects.push({text: "+"+gain, x: enemy.x+30, y: enemy.y, color:"lime", end: Date.now()+500});
+          }
+          // 割り算成功だが敵が残る → スコア変動なし
+        } else {
+          score -= 20; // 割り算失敗 → 減点
+          effects.push({text: "-20", x: enemy.x+30, y: enemy.y, color:"red", end: Date.now()+500});
+        }
+        bullets = bullets.filter(b=>b!==bullet);
+      }
+    });
+  });
+
+  if(score>=1000){ gameClear=true; } // クリア時はボタン表示しない
+}
+
+// 描画処理
+function draw(){
+  ctx.clearRect(0,0,WIDTH(),HEIGHT());
+  ctx.font="20px Arial";
+
+  if(gameOver){
+    ctx.fillStyle="red";
+    ctx.fillText("GAME OVER", WIDTH()/2-60, HEIGHT()/2);
+    ctx.fillStyle="white";
+    ctx.fillText("Final Score: "+score, WIDTH()/2-80, HEIGHT()/2+40);
+    return;
+  }
+  if(gameClear){
+    ctx.fillStyle="lime";
+    ctx.fillText("GAME CLEAR!", WIDTH()/2-70, HEIGHT()/2);
+    ctx.fillStyle="white";
+    ctx.fillText("Final Score: "+score, WIDTH()/2-80, HEIGHT()/2+40);
+    return;
+  }
+
+  ctx.fillStyle="green";
+  ctx.fillRect(playerX-20, playerY, 40, 20);
+
+  ctx.fillStyle="yellow";
+  ctx.fillText(bulletQueue[bulletQueue.length-1], playerX-10, playerY-20);
+
+  ctx.fillStyle="cyan";
+  bulletQueue.slice(0,bulletQueue.length-1).reverse().forEach((val,i)=>{
+    ctx.fillText(val, WIDTH()-60, HEIGHT()-40 - i*30);
+  });
+
+  bullets.forEach(b=>b.draw());
+  enemies.forEach(e=>e.draw());
+
+  // スコアエフェクト描画
+  effects = effects.filter(effect=>{
+    if(Date.now() < effect.end){
+      ctx.fillStyle = effect.color;
+      ctx.fillText(effect.text, effect.x, effect.y);
+      return true;
+    }
+    return false;
+  });
+
+  ctx.fillStyle="white";
+  ctx.fillText("Score: "+score,20,20);
+  ctx.fillStyle="pink";
+  ctx.fillText("Lives: "+lives,20,50);
+}
+
+// メインループ
+function gameLoop(){
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// リスタートボタン処理
+restartBtn.addEventListener("click", ()=>{
+  initGame();
+});
+
+// 初期化して開始
+initGame();
+gameLoop();
+</script>
+</body>
+</html>
