@@ -26,11 +26,57 @@
       border: none;
       cursor: pointer;
     }
+    /* スマホ操作ボタン */
+    #controls {
+      position: fixed;
+      right: 10px;
+      bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 20px;
+      z-index: 10;
+    }
+    #verticalBtns {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #horizontalBtns {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+    }
+    #controls button {
+      font-size: 24px;
+      padding: 15px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 2px solid white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #controls button:active {
+      background: rgba(0,255,0,0.4);
+    }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <button id="restartBtn">Restart</button>
+
+<!-- スマホ用操作ボタン -->
+<div id="controls">
+  <div id="verticalBtns">
+    <button id="upBtn">↑</button>
+    <button id="downBtn">↓</button>
+  </div>
+  <div id="horizontalBtns">
+    <button id="leftBtn">←</button>
+    <button id="rightBtn">→</button>
+  </div>
+</div>
+
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -50,9 +96,7 @@ const HEIGHT = ()=>canvas.height;
 // --- ゲーム状態変数 ---
 let playerX, playerY, bullets, enemies, bulletQueue, enemyTimer, score, lives;
 let gameOver, gameClear;
-
-// スコアエフェクト管理
-let effects = [];
+let effects = []; // スコアエフェクト
 
 // 初期化関数
 function initGame(){
@@ -67,7 +111,7 @@ function initGame(){
   gameOver = false;
   gameClear = false;
   effects = [];
-  restartBtn.style.display = "none"; // ボタン非表示
+  restartBtn.style.display = "none";
 }
 
 // 弾の候補
@@ -82,7 +126,7 @@ class Bullet {
 
 // 敵クラス
 class Enemy {
-  constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=1; } // speed=1でPython版と同じくらい
+  constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=1; }
   update(){ this.y += this.speed; }
   draw(){ ctx.fillStyle="red"; ctx.fillText(this.value,this.x,this.y); }
   hit(bulletValue){
@@ -97,7 +141,7 @@ class Enemy {
 // 敵生成
 function generateComposite(){
   let factors = [];
-  let count = Math.floor(Math.random()*2)+2; // 2〜3個
+  let count = Math.floor(Math.random()*2)+2;
   while(factors.length < count){
     let f = bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)];
     if(!factors.includes(f)) factors.push(f);
@@ -108,7 +152,6 @@ function generateComposite(){
 // キー入力
 let keys = {};
 document.addEventListener("keydown", e=>{
-  // 矢印キーのスクロールを無効化
   if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
     e.preventDefault();
   }
@@ -124,6 +167,24 @@ document.addEventListener("keydown", e=>{
   }
 });
 document.addEventListener("keyup", e=>{ keys[e.key] = false; });
+
+// スマホ用ボタン操作
+document.getElementById("leftBtn").addEventListener("touchstart", ()=> keys["ArrowLeft"]=true);
+document.getElementById("leftBtn").addEventListener("touchend", ()=> keys["ArrowLeft"]=false);
+
+document.getElementById("rightBtn").addEventListener("touchstart", ()=> keys["ArrowRight"]=true);
+document.getElementById("rightBtn").addEventListener("touchend", ()=> keys["ArrowRight"]=false);
+
+document.getElementById("upBtn").addEventListener("click", ()=>{
+  bullets.push(new Bullet(playerX, playerY, bulletQueue[bulletQueue.length-1]));
+  bulletQueue.pop();
+  bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
+});
+
+document.getElementById("downBtn").addEventListener("click", ()=>{
+  bulletQueue.pop();
+  bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
+});
 
 // 更新処理
 function update(){
@@ -148,7 +209,7 @@ function update(){
       enemies = enemies.filter(e=>e!==enemy);
       if(lives<=0){ 
         gameOver=true; 
-        restartBtn.style.display="block"; // ゲームオーバー時のみ表示
+        restartBtn.style.display="block";
       }
     }
     bullets.forEach(bullet=>{
@@ -156,14 +217,12 @@ function update(){
         if(enemy.value % bullet.value === 0){
           if(enemy.hit(bullet.value)){
             let gain = Math.floor((HEIGHT()-enemy.y)/10);
-            score += gain; // 敵が消えた場合のみ加点
+            score += gain;
             enemies = enemies.filter(e=>e!==enemy);
-            // エフェクト追加
             effects.push({text: "+"+gain, x: enemy.x+30, y: enemy.y, color:"lime", end: Date.now()+500});
           }
-          // 割り算成功だが敵が残る → スコア変動なし
         } else {
-          score -= 20; // 割り算失敗 → 減点
+          score -= 20;
           effects.push({text: "-20", x: enemy.x+30, y: enemy.y, color:"red", end: Date.now()+500});
         }
         bullets = bullets.filter(b=>b!==bullet);
@@ -171,7 +230,7 @@ function update(){
     });
   });
 
-  if(score>=1000){ gameClear=true; } // クリア時はボタン表示しない
+  if(score>=1000){ gameClear=true; }
 }
 
 // 描画処理
@@ -205,40 +264,39 @@ function draw(){
     ctx.fillText(val, WIDTH()-60, HEIGHT()-40 - i*30);
   });
 
-  bullets.forEach(b=>b.draw());
-  enemies.forEach(e=>e.draw());
+      // --- 前回の続き ---
 
-  // スコアエフェクト描画
-  effects = effects.filter(effect=>{
-    if(Date.now() < effect.end){
-      ctx.fillStyle = effect.color;
-      ctx.fillText(effect.text, effect.x, effect.y);
-      return true;
-    }
-    return false;
-  });
+    bullets.forEach(b=>b.draw());
+    enemies.forEach(e=>e.draw());
 
-  ctx.fillStyle="white";
-  ctx.fillText("Score: "+score,20,20);
-  ctx.fillStyle="pink";
-  ctx.fillText("Lives: "+lives,20,50);
+    // スコアエフェクト描画
+    effects = effects.filter(eff=> Date.now() < eff.end);
+    effects.forEach(eff=>{
+      ctx.fillStyle = eff.color;
+      ctx.fillText(eff.text, eff.x, eff.y);
+    });
+
+    // スコアとライフ表示
+    ctx.fillStyle="white";
+    ctx.fillText("Score: "+score, 20, 30);
+    ctx.fillText("Lives: "+lives, 20, 60);
 }
 
 // メインループ
-function gameLoop(){
+function loop(){
   update();
   draw();
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
-// リスタートボタン処理
+// リスタートボタン
 restartBtn.addEventListener("click", ()=>{
   initGame();
 });
 
-// 初期化して開始
+// ゲーム開始
 initGame();
-gameLoop();
+loop();
 </script>
 </body>
 </html>
