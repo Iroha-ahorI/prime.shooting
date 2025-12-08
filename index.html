@@ -7,7 +7,8 @@
     body, html {
       margin: 0;
       padding: 0;
-      overflow: hidden; /* スクロールバーを消す */
+      overflow: hidden;
+      background: black;
     }
     canvas {
       background: black;
@@ -19,51 +20,79 @@
       top: 35%;
       left: 50%;
       transform: translate(-50%, -50%);
-      padding: 10px 20px;
-      font-size: 18px;
+      padding: 15px 30px;
+      font-size: 22px;
       background: #f44336;
       color: white;
       border: none;
+      border-radius: 8px;
       cursor: pointer;
+      z-index: 20;
     }
-    /* スマホ操作ボタン */
+    /* 待機弾列を右上に固定 */
+    #bulletQueueDisplay {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      text-align: right;
+      color: cyan;
+      font-size: 28px;
+      z-index: 15;
+    }
+    /* 操作ボタンを右下に配置 */
     #controls {
       position: fixed;
-      right: 10px;
-      bottom: 10px;
+      right: 20px;
+      bottom: 20px;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 20px;
+      gap: 30px;
       z-index: 10;
     }
     #verticalBtns {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 15px;
     }
     #horizontalBtns {
       display: flex;
       flex-direction: row;
-      gap: 10px;
+      gap: 15px;
     }
     #controls button {
-      font-size: 24px;
-      padding: 15px;
+      font-size: 40px;
+      padding: 25px;
       background: rgba(255,255,255,0.2);
       color: white;
-      border: 2px solid white;
-      border-radius: 8px;
+      border: 3px solid white;
+      border-radius: 12px;
       cursor: pointer;
     }
     #controls button:active {
       background: rgba(0,255,0,0.4);
+    }
+    /* 横画面時の調整 */
+    @media (orientation: landscape) {
+      #controls {
+        flex-direction: row;
+        gap: 40px;
+      }
+      #verticalBtns {
+        flex-direction: column;
+      }
+      #horizontalBtns {
+        flex-direction: row;
+      }
     }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <button id="restartBtn">Restart</button>
+
+<!-- 待機弾列表示 -->
+<div id="bulletQueueDisplay"></div>
 
 <!-- スマホ用操作ボタン -->
 <div id="controls">
@@ -112,6 +141,7 @@ function initGame(){
   gameClear = false;
   effects = [];
   restartBtn.style.display = "none";
+  drawBulletQueue();
 }
 
 // 弾の候補
@@ -157,13 +187,10 @@ document.addEventListener("keydown", e=>{
   }
   keys[e.key] = true;
   if(e.key === "ArrowUp"){
-    bullets.push(new Bullet(playerX, playerY, bulletQueue[bulletQueue.length-1]));
-    bulletQueue.pop();
-    bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
+    shootBullet();
   }
   if(e.key === "ArrowDown"){
-    bulletQueue.pop();
-    bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
+    skipBullet();
   }
 });
 document.addEventListener("keyup", e=>{ keys[e.key] = false; });
@@ -175,16 +202,27 @@ document.getElementById("leftBtn").addEventListener("touchend", ()=> keys["Arrow
 document.getElementById("rightBtn").addEventListener("touchstart", ()=> keys["ArrowRight"]=true);
 document.getElementById("rightBtn").addEventListener("touchend", ()=> keys["ArrowRight"]=false);
 
-document.getElementById("upBtn").addEventListener("click", ()=>{
+document.getElementById("upBtn").addEventListener("click", ()=> shootBullet());
+document.getElementById("downBtn").addEventListener("click", ()=> skipBullet());
+
+// 弾発射とスキップ処理
+function shootBullet(){
   bullets.push(new Bullet(playerX, playerY, bulletQueue[bulletQueue.length-1]));
   bulletQueue.pop();
   bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
-});
-
-document.getElementById("downBtn").addEventListener("click", ()=>{
+  drawBulletQueue();
+}
+function skipBullet(){
   bulletQueue.pop();
   bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
-});
+  drawBulletQueue();
+}
+
+// 待機弾列表示更新
+function drawBulletQueue(){
+  const queueDiv = document.getElementById("bulletQueueDisplay");
+  queueDiv.innerHTML = bulletQueue.slice().reverse().join(" ");
+}
 
 // 更新処理
 function update(){
@@ -236,7 +274,7 @@ function update(){
 // 描画処理
 function draw(){
   ctx.clearRect(0,0,WIDTH(),HEIGHT());
-  ctx.font="20px Arial";
+  ctx.font="24px Arial";
 
   if(gameOver){
     ctx.fillStyle="red";
@@ -253,33 +291,29 @@ function draw(){
     return;
   }
 
+  // プレイヤー描画
   ctx.fillStyle="green";
   ctx.fillRect(playerX-20, playerY, 40, 20);
 
+  // 現在の弾表示
   ctx.fillStyle="yellow";
   ctx.fillText(bulletQueue[bulletQueue.length-1], playerX-10, playerY-20);
 
-  ctx.fillStyle="cyan";
-  bulletQueue.slice(0,bulletQueue.length-1).reverse().forEach((val,i)=>{
-    ctx.fillText(val, WIDTH()-60, HEIGHT()-40 - i*30);
+  // 弾・敵描画
+  bullets.forEach(b=>b.draw());
+  enemies.forEach(e=>e.draw());
+
+  // スコアエフェクト描画
+  effects = effects.filter(eff=> Date.now() < eff.end);
+  effects.forEach(eff=>{
+    ctx.fillStyle = eff.color;
+    ctx.fillText(eff.text, eff.x, eff.y);
   });
 
-      // --- 前回の続き ---
-
-    bullets.forEach(b=>b.draw());
-    enemies.forEach(e=>e.draw());
-
-    // スコアエフェクト描画
-    effects = effects.filter(eff=> Date.now() < eff.end);
-    effects.forEach(eff=>{
-      ctx.fillStyle = eff.color;
-      ctx.fillText(eff.text, eff.x, eff.y);
-    });
-
-    // スコアとライフ表示
-    ctx.fillStyle="white";
-    ctx.fillText("Score: "+score, 20, 30);
-    ctx.fillText("Lives: "+lives, 20, 60);
+  // スコアとライフ表示
+  ctx.fillStyle="white";
+  ctx.fillText("Score: "+score, 20, 30);
+  ctx.fillText("Lives: "+lives, 20, 60);
 }
 
 // メインループ
