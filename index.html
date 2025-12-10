@@ -329,10 +329,22 @@ restartBtn.addEventListener("click", ()=>{
   initGame();
 });
 
+// ダブルタップズーム防止（補助）
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) {
+    event.preventDefault(); // ダブルタップズームを防ぐ
+  }
+  lastTouchEnd = now;
+}, false);
+
+
 // ゲーム開始
 initGame();
 loop();
 </script>
 </body>
 </html>
+
 
