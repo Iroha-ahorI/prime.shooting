@@ -32,6 +32,8 @@
       z-index: 20;
     }
 
+
+    
     /* 待機弾列 */
     #bulletQueueDisplay {
       position: fixed;
@@ -88,6 +90,24 @@
     #controls button:active {
       background: rgba(0,255,0,0.4);
     }
+
+    @media (orientation: landscape) {
+      #controls {
+        flex-direction: row;
+        gap: 40px;
+      }
+      #verticalBtns {
+        flex-direction: column;
+      }
+      #horizontalBtns {
+        flex-direction: row;
+      }
+    }
+      #controls button {
+      touch-action: manipulation; /* 標準ジェスチャーを抑制しつつクリックは通す */
+    }
+
+
   </style>
 </head>
 
@@ -322,3 +342,4 @@ loop();
 </script>
 </body>
 </html>
+
