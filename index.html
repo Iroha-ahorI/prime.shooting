@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Prime Shooter JS版</title>
+  <title>　割り算インベーダー </title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <style>
@@ -11,120 +11,112 @@
       padding: 0;
       overflow: hidden;
       background: black;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
-    canvas {
+
+    /* 中央80%のゲーム画面 */
+    #gameCanvas {
+      position: fixed;
+      left: 10vw;
+      width: 80vw;
+      height: 100vh;
       background: black;
       display: block;
     }
-    #restartBtn {
-      display: none;
-      position: absolute;
-      top: 35%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 15px 30px;
-      font-size: 22px;
-      background: #f44336;
+
+    /* 左側UI（10%） */
+    #leftUI {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 10vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.4);
       color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
       z-index: 20;
     }
 
-
-    
-    /* 待機弾列 */
-    #bulletQueueDisplay {
+    /* 右側UI（10%） */
+    #rightUI {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      text-align: right;
+      right: 0;
+      top: 0;
+      width: 10vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.4);
       color: cyan;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      z-index: 20;
+    }
+
+    /* ボタン共通 */
+    #leftUI button, #rightUI button {
       font-size: 28px;
-      z-index: 15;
-    }
-
-    /* ランキング表示 */
-    #rankingDisplay {
-      position: fixed;
-      top: 80px;
-      left: 20px;
-      color: white;
-      font-size: 20px;
-      z-index: 15;
-      line-height: 1.4em;
-    }
-
-    /* 操作ボタン */
-    #controls {
-      position: fixed;
-      right: 20px;
-      bottom: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 30px;
-      z-index: 10;
-    }
-    #verticalBtns {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-    #horizontalBtns {
-      display: flex;
-      flex-direction: row;
-      gap: 15px;
-    }
-    #controls button {
-      font-size: 40px;
-      padding: 25px;
+      padding: 20px;
       background: rgba(255,255,255,0.2);
       color: white;
-      border: 3px solid white;
-      border-radius: 12px;
+      border: 2px solid white;
+      border-radius: 10px;
       cursor: pointer;
       touch-action: manipulation;
     }
-    #controls button:active {
-      background: rgba(0,255,0,0.4);
+
+    /* ボタンを画面下に寄せる */
+    .bottomButtons {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
-    @media (orientation: landscape) {
-      #controls {
-        flex-direction: row;
-        gap: 40px;
-      }
-      #verticalBtns {
-        flex-direction: column;
-      }
-      #horizontalBtns {
-        flex-direction: row;
-      }
+    #restartBtn {
+      display: none;
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px 40px;
+      font-size: 26px;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      z-index: 30;
     }
-      #controls button {
-      touch-action: manipulation; /* 標準ジェスチャーを抑制しつつクリックは通す */
-    }
-
-
   </style>
 </head>
 
 <body>
+
+<!-- 左側UI -->
+<div id="leftUI">
+  <div id="rankingDisplay"></div>
+
+  <div class="bottomButtons">
+    <button id="skipBtn">変更</button>
+    <button id="leftBtn">←</button>
+  </div>
+</div>
+
+<!-- 中央ゲーム画面 -->
 <canvas id="gameCanvas"></canvas>
 <button id="restartBtn">Restart</button>
 
-<div id="bulletQueueDisplay"></div>
-<div id="rankingDisplay"></div>
+<!-- 右側UI -->
+<div id="rightUI">
+  <div id="bulletQueueDisplay"></div>
 
-<div id="controls">
-  <div id="verticalBtns">
-    <button id="upBtn">↑</button>
-    <button id="downBtn">↓</button>
-  </div>
-  <div id="horizontalBtns">
-    <button id="leftBtn">←</button>
+  <div class="bottomButtons">
+    <button id="upBtn">攻撃</button>
     <button id="rightBtn">→</button>
   </div>
 </div>
@@ -135,7 +127,7 @@ const ctx = canvas.getContext("2d");
 const restartBtn = document.getElementById("restartBtn");
 
 function resizeCanvas(){
-  canvas.width = window.innerWidth;
+  canvas.width = window.innerWidth * 0.80;
   canvas.height = window.innerHeight;
 }
 window.addEventListener("resize", resizeCanvas);
@@ -148,6 +140,8 @@ let playerX, playerY, bullets, enemies, bulletQueue, enemyTimer, score, lives;
 let gameOver;
 let effects = [];
 
+const bulletNumbers = [2,3,3,4,5,6,7];
+
 function initGame(){
   playerX = WIDTH()/2;
   playerY = HEIGHT() - 50;
@@ -156,14 +150,12 @@ function initGame(){
   bulletQueue = Array.from({length:7},()=>bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
   enemyTimer = 0;
   score = 0;
-  lives = 2;   // ← ライフ2
+  lives = 2;
   gameOver = false;
   effects = [];
   restartBtn.style.display = "none";
   drawBulletQueue();
 }
-
-const bulletNumbers = [2,3,3,4,5,6,7];
 
 class Bullet {
   constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=-10; }
@@ -174,7 +166,15 @@ class Bullet {
 class Enemy {
   constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=1; }
   update(){ this.y += this.speed; }
-  draw(){ ctx.fillStyle="red"; ctx.fillText(this.value,this.x,this.y); }
+  draw(){
+  ctx.font = "60px Arial";
+  ctx.fillStyle = "white";
+  ctx.fillText("👻", this.x - 20, this.y - 30);
+
+  ctx.font = "40px Arial";
+  ctx.fillStyle = "red";
+  ctx.fillText(this.value, this.x + 0, this.y + 10);
+}
   hit(bulletValue){
     if(this.value % bulletValue === 0){
       this.value = Math.floor(this.value / bulletValue);
@@ -195,24 +195,59 @@ function generateComposite(){
 }
 
 let keys = {};
+
 document.addEventListener("keydown", e=>{
-  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
-    e.preventDefault();
-  }
+  if(["ArrowLeft","ArrowRight"].includes(e.key)) e.preventDefault();
   keys[e.key] = true;
-  if(e.key === "ArrowUp"){ shootBullet(); }
-  if(e.key === "ArrowDown"){ skipBullet(); }
+  if(e.key === "ArrowUp") shootBullet();
+  if(e.key === "ArrowDown") skipBullet();
 });
-document.addEventListener("keyup", e=>{ keys[e.key] = false; });
+document.addEventListener("keyup", e=> keys[e.key] = false);
 
-document.getElementById("leftBtn").addEventListener("touchstart", ()=> keys["ArrowLeft"]=true);
-document.getElementById("leftBtn").addEventListener("touchend", ()=> keys["ArrowLeft"]=false);
+/* 長押し時のブラウザ機能を無効化 */
+function preventTouch(e){ e.preventDefault(); }
 
-document.getElementById("rightBtn").addEventListener("touchstart", ()=> keys["ArrowRight"]=true);
-document.getElementById("rightBtn").addEventListener("touchend", ()=> keys["ArrowRight"]=false);
+/* 左ボタン */
+document.getElementById("leftBtn").addEventListener("touchstart", e=>{
+  preventTouch(e);
+  keys["ArrowLeft"] = true;
+});
+document.getElementById("leftBtn").addEventListener("touchend", e=>{
+  preventTouch(e);
+  keys["ArrowLeft"] = false;
+});
+document.getElementById("leftBtn").addEventListener("click", ()=>{
+  keys["ArrowLeft"] = true;
+  setTimeout(()=> keys["ArrowLeft"]=false, 100);
+});
 
+/* 右ボタン */
+document.getElementById("rightBtn").addEventListener("touchstart", e=>{
+  preventTouch(e);
+  keys["ArrowRight"] = true;
+});
+document.getElementById("rightBtn").addEventListener("touchend", e=>{
+  preventTouch(e);
+  keys["ArrowRight"] = false;
+});
+document.getElementById("rightBtn").addEventListener("click", ()=>{
+  keys["ArrowRight"] = true;
+  setTimeout(()=> keys["ArrowRight"]=false, 100);
+});
+
+/* Shoot */
+document.getElementById("upBtn").addEventListener("touchstart", e=>{
+  preventTouch(e);
+  shootBullet();
+});
 document.getElementById("upBtn").addEventListener("click", ()=> shootBullet());
-document.getElementById("downBtn").addEventListener("click", ()=> skipBullet());
+
+/* Skip */
+document.getElementById("skipBtn").addEventListener("touchstart", e=>{
+  preventTouch(e);
+  skipBullet();
+});
+document.getElementById("skipBtn").addEventListener("click", ()=> skipBullet());
 
 function shootBullet(){
   bullets.push(new Bullet(playerX, playerY, bulletQueue[bulletQueue.length-1]));
@@ -220,19 +255,29 @@ function shootBullet(){
   bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
   drawBulletQueue();
 }
+
 function skipBullet(){
   bulletQueue.pop();
   bulletQueue.unshift(bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)]);
   drawBulletQueue();
 }
 
-/* 発射弾を除外して待機弾列を表示 */
 function drawBulletQueue(){
   const queueDiv = document.getElementById("bulletQueueDisplay");
-  queueDiv.innerHTML = bulletQueue.slice(0, bulletQueue.length-1).reverse().join(" ");
+
+  let html = "";
+  const q = bulletQueue.slice(0, bulletQueue.length - 1).reverse();
+
+  q.forEach((value, index) => {
+    // 発射に近いほど index が小さい
+    const size = 20 + (q.length - index) * 6;  
+    const margin = 4;
+    html += `<div style="font-size:${size}px; margin-bottom:2px;">${value}</div>`;
+  });
+
+  queueDiv.innerHTML = html;
 }
 
-/* スコア保存（上位5つ） */
 function saveScore(score){
   let scores = JSON.parse(localStorage.getItem("scores") || "[]");
   scores.push(score);
@@ -241,7 +286,6 @@ function saveScore(score){
   localStorage.setItem("scores", JSON.stringify(scores));
 }
 
-/* ランキング描画 */
 function drawRanking(){
   let scores = JSON.parse(localStorage.getItem("scores") || "[]");
   let html = "<b>Top Scores</b><br>";
@@ -255,9 +299,17 @@ function update(){
   if(keys["ArrowLeft"]) playerX -= 8;
   if(keys["ArrowRight"]) playerX += 8;
 
+  const minX = 20;
+  const maxX = WIDTH() - 20;
+  playerX = Math.max(minX, Math.min(maxX, playerX));
+
   enemyTimer++;
   if(enemyTimer > 450){
-    enemies.push(new Enemy(Math.random()*(WIDTH()-200)+50,0,generateComposite()));
+    enemies.push(new Enemy(
+      Math.random() * (WIDTH()*0.80) + WIDTH()*0.10,
+      0,
+      generateComposite()
+    ));
     enemyTimer = 0;
   }
 
@@ -275,6 +327,7 @@ function update(){
         restartBtn.style.display="block";
       }
     }
+
     bullets.forEach(bullet=>{
       if(Math.abs(enemy.x-bullet.x)<40 && Math.abs(enemy.y-bullet.y)<40){
         if(enemy.value % bullet.value === 0){
@@ -282,11 +335,11 @@ function update(){
             let gain = Math.floor((HEIGHT()-enemy.y)/10);
             score += gain;
             enemies = enemies.filter(e=>e!==enemy);
-            effects.push({text: "+"+gain, x: enemy.x+30, y: enemy.y, color:"lime", end: Date.now()+500});
+            effects.push({text: "+"+gain, x: enemy.x+30, y: enemy.y, color:"lime", end: Date.now()+1500});
           }
         } else {
           score -= 20;
-          effects.push({text: "-20", x: enemy.x+30, y: enemy.y, color:"red", end: Date.now()+500});
+          effects.push({text: "-20", x: enemy.x+30, y: enemy.y, color:"red", end: Date.now()+1500});
         }
         bullets = bullets.filter(b=>b!==bullet);
       }
@@ -296,13 +349,13 @@ function update(){
 
 function draw(){
   ctx.clearRect(0,0,WIDTH(),HEIGHT());
-  ctx.font="24px Arial";
+  ctx.font="45px Arial";
 
   if(gameOver){
     ctx.fillStyle="red";
-    ctx.fillText("GAME OVER", WIDTH()/2-60, HEIGHT()/2);
+    ctx.fillText("GAME OVER", WIDTH()/2-140, HEIGHT()/2+40);
     ctx.fillStyle="white";
-    ctx.fillText("Final Score: "+score, WIDTH()/2-80, HEIGHT()/2+40);
+    ctx.fillText("Final Score: "+score, WIDTH()/2-160, HEIGHT()/2+80);
     drawRanking();
     return;
   }
@@ -322,6 +375,7 @@ function draw(){
     ctx.fillText(eff.text, eff.x, eff.y);
   });
 
+  ctx.font = "45px Arial";
   ctx.fillStyle="white";
   ctx.fillText("Score: "+score, 20, 30);
   ctx.fillText("Lives: "+lives, 20, 60);
@@ -342,4 +396,3 @@ loop();
 </script>
 </body>
 </html>
-
