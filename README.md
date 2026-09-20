@@ -1,11 +1,10 @@
-# Prime Shooter JS版
-
-Python(Pygame)版をブラウザで遊べるように移植した作品です。
+# 割り算インベーダー
+- 楽しみながら割り算の練習をすることを目的開発した学習ゲームです。
 
 ## 操作方法
 - ← → : プレイヤー移動
-- ↑ : 弾を発射
-- ↓ : 弾をスキップ
+- 攻撃（↑） : 弾を発射
+- 変更（↓） : 弾をスキップ
 
 ## ルール
 - 敵の数字を割り切れる弾を当てると敵が分解されます。
@@ -22,8 +21,8 @@ A browser-based shooting game where you fire number bullets to break down compos
 
 ## Controls
 - **← / →** : Move the player left and right
-- **↑** : Shoot the current bullet
-- **↓** : Skip the current bullet (discard and replace)
+- **攻撃（↑）** : Shoot the current bullet
+- **変更（↓）** : Skip the current bullet (discard and replace)
 
 ## Rules
 1. **Enemy division**  
