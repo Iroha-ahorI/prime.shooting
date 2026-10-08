@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>　割り算インベーダー </title>
+  <title> 割り算インベーダー </title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <style>
@@ -71,11 +71,15 @@
 
     /* ボタンを画面下に寄せる */
     .bottomButtons {
-      margin-top: auto;
+      position: absolute;
+      bottom: 30px;      /* ★ ここで固定位置を決める（調整可能） */
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
+
 
     #restartBtn {
       display: none;
@@ -139,6 +143,9 @@ const HEIGHT = ()=>canvas.height;
 let playerX, playerY, bullets, enemies, bulletQueue, enemyTimer, score, lives;
 let gameOver;
 let effects = [];
+let touchStartX = null;
+
+
 
 const bulletNumbers = [2,3,3,4,5,6,7];
 
@@ -164,7 +171,7 @@ class Bullet {
 }
 
 class Enemy {
-  constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=1; }
+  constructor(x,y,value){ this.x=x; this.y=y; this.value=value; this.speed=0.5; }
   update(){ this.y += this.speed; }
   draw(){
   ctx.font = "60px Arial";
@@ -186,7 +193,14 @@ class Enemy {
 
 function generateComposite(){
   let factors = [];
-  let count = Math.floor(Math.random()*2)+2;
+  let count;
+  if (score >= 2000) {
+    count = Math.floor(Math.random() * 2) + 4;  
+  } else if (score >= 1000) {
+    count = Math.floor(Math.random() * 2) + 3;  
+  } else {
+    count = Math.floor(Math.random() * 2) + 2;  
+  }
   while(factors.length < count){
     let f = bulletNumbers[Math.floor(Math.random()*bulletNumbers.length)];
     if(!factors.includes(f)) factors.push(f);
@@ -234,6 +248,36 @@ document.getElementById("rightBtn").addEventListener("click", ()=>{
   keys["ArrowRight"] = true;
   setTimeout(()=> keys["ArrowRight"]=false, 100);
 });
+
+/* スワイプ画面操作 */
+canvas.addEventListener("touchstart", (e) => {
+  touchStartX = e.touches[0].clientX;
+});
+
+canvas.addEventListener("touchmove", (e) => {
+  e.preventDefault(); // ブラウザの横スクロール防止
+
+  if (touchStartX !== null) {
+    const currentX = e.touches[0].clientX;
+    const deltaX = currentX - touchStartX;
+
+    // プレイヤーを指の移動量だけ動かす
+    playerX += deltaX * 0.8;  // ★ 追従の強さ（調整可能）
+
+    // 左右の壁（10% UI）に当たらないように制限
+    const minX = 20;
+    const maxX = WIDTH() - 20;
+    playerX = Math.max(minX, Math.min(maxX, playerX));
+
+    // 次の移動のために更新
+    touchStartX = currentX;
+  }
+});
+
+canvas.addEventListener("touchend", () => {
+  touchStartX = null;
+});
+
 
 /* Shoot */
 document.getElementById("upBtn").addEventListener("touchstart", e=>{
@@ -304,7 +348,17 @@ function update(){
   playerX = Math.max(minX, Math.min(maxX, playerX));
 
   enemyTimer++;
-  if(enemyTimer > 450){
+
+  let spawnInterval;
+  if (score >= 2000) {
+    spawnInterval = 450;
+  } else if (score >= 1000) {
+    spawnInterval = 400;
+  } else {
+    spawnInterval = 350;
+  }
+
+  if (enemyTimer > spawnInterval) {
     enemies.push(new Enemy(
       Math.random() * (WIDTH()*0.80) + WIDTH()*0.10,
       0,
